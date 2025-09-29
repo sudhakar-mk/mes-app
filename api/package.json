@@ -1,0 +1,9 @@
+{
+  "name": "static-site-api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "func start"
+  },
+  "dependencies": {}
+}
