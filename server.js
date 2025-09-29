@@ -8,7 +8,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // SPA fallback (optional)
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'home.html'));
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(port, () => {
