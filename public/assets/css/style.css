@@ -1,0 +1,166 @@
+
+/* root */
+:root {
+  /* main color */
+  --primary-color: #042d62;
+  /* secondary color */
+  --secondary-color: #cccfd3;
+  /* hover or accent color */
+  --bg-light: #f7f7f7;
+
+  --bg-hover: #dde8ff;
+
+  --bg-overlay: rgba(0, 0, 0, 0.4);
+
+  /* text */
+  --text-primary: #042d62;
+  --text-black: #000000;
+  --text-white: #ffffff;
+
+  /* button backgrounds */
+  --bg-s: #042d62;
+  --bg-s-h: #3389f7;
+  --bg-c: #f0ebeb;
+  --bg-c-h: #dee2e6;
+
+  --bg-form: #f8f9fa;
+}
+
+
+
+body {
+  font-family: Arial, sans-serif;
+  overflow-x: hidden;
+  font-size: 14px;
+}
+
+h4, h5, h6{
+  font-family: inherit;
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+/* Navbar */
+.app-top-nav {
+  background-color: var(--primary-color);
+  color: var(--text-white);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Logo + Title */
+.app-nav-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+/* Logo */
+.app-nav-left i {
+  font-size: 25px;
+  cursor: pointer;
+}
+
+#menuToggle {
+    cursor: pointer;
+    stroke: white;
+    font-size: 18px;
+  }
+
+/* Title */
+.app-nav-title {
+  font-weight: lighter;
+  font-family: 'Goldman', sans-serif;
+  font-size: 18px;
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Profile */
+.app-nav-right i {
+  font-size: 30px;
+  cursor: pointer;
+}
+
+/* Sidebar */
+.app-sidebar {
+  position: fixed;
+  height: 100%;
+  background-color: var(--bg-light);
+  color: var(--text-black);
+  transition: left 0.3s ease;
+  z-index: 999;
+}
+
+.app-sidebar a {
+  text-decoration: none;   /* removes underline */
+  color: inherit;          /* inherit parent color */
+  display: block;          /* makes the whole row clickable */
+  padding: 8px 12px;       /* optional: spacing */
+}
+
+.app-sidebar a:hover {
+  background: #042D62;     /* highlight on hover */
+  color: white;            /* optional */
+}
+
+/* Black shadow overlay */
+.app-overlay {
+  position: fixed;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 47px);
+  background: var(--bg-overlay);
+  z-index: 998;
+}
+
+/* Sidebar Links */
+.app-nav-item a {
+  display: block;
+  color: var(--primary-color) !important;
+  font-weight: lighter;
+  padding: 5px 16px;
+  border-radius: 1px;
+  transition: all 0.3s ease;
+}
+
+.app-nav-item a:hover,
+.app-nav-item a.active {
+  color: var(--text-primary) !important;
+  background-color: var(--bg-hover);
+}
+
+/* Buttons (already safe) */
+.btn-cncl {
+  background-color: var(--bg-c);
+  color: var(--primary-color);
+  border: 1px solid var(--text-white);
+  padding: 5px 10px;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-cncl:hover {
+  background-color: var(--bg-c-h);
+  color: #000000;
+}
+
+.btn-subt {
+  background-color: var(--text-primary) !important;
+  color: var(--text-white) !important;
+  border: 1px solid var(--text-white);
+  padding: 5px 10px;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+   font-size: 14px;
+}
+
+.btn-subt:hover {
+  background-color: var(--bg-s-h) !important;
+  color: var(--text-white);
+}
