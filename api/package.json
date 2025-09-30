@@ -5,8 +5,9 @@
   "description": "Azure Functions for Static Web Apps",
   "main": "convert/index.js",
   "dependencies": {
-    "jszip": "3.10.1",
+    "applicationinsights": "^3.12.0",
     "jsdom": "22.1.0",
+    "jszip": "3.10.1",
     "xmldom": "^0.6.0"
   },
   "engines": {
