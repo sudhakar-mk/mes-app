@@ -1,9 +1,15 @@
 {
-  "name": "static-site-api",
+  "name": "mes-connect-converter-api",
   "version": "1.0.0",
   "private": true,
-  "scripts": {
-    "start": "func start"
+  "description": "Azure Functions for Static Web Apps",
+  "main": "convert/index.js",
+  "dependencies": {
+    "jszip": "3.10.1",
+    "jsdom": "22.1.0",
+    "xmldom": "0.8.10"
   },
-  "dependencies": {}
+  "engines": {
+    "node": ">=18 <20"
+  }
 }
