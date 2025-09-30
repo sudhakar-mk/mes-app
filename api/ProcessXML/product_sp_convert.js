@@ -4,6 +4,8 @@ let swaggerData = {};
 let iFileName;
 let collectedFiles = [];
 let downloadCount = 0;
+let log_text = '';         // aggregated log text
+let nonConverted = '';     // list/text of non-converted items
 const fs = require('fs');
 const path = require('path');
 const swaggerPath = path.join(__dirname, 'MESSwaggerV3-3.json'); // adjust path if file is elsewhere
@@ -928,15 +930,16 @@ function generateXMLDelete(manualGroup, manualOperation, OutPutVariale, AllParam
 }
 
 function downloadXML(format2, fileName, fileLength) {
-  
- try {
+  try {
     const filename = (fileName && fileName.toLowerCase().endsWith('.xml')) ? fileName : `${fileName}.xml`;
     collectedFiles.push({ name: filename, content: format2 });
     downloadCount++;
   } catch (e) {
     console.error('[product_sp_convert] downloadXML collect error', e);
+    log_text += '\n[downloadXML error] ' + (e && e.message ? e.message : String(e));
   }
 }
+
 
 function zipFilesReset() {
   // Reset collection and counters (keeps same semantics as old reset)
@@ -990,30 +993,64 @@ function CheckSwiggerApiExist(manualGroup, manualOperation) {
   return "Not Found";
 }
 
+// ---- Node-friendly export wrapper (safe) ----
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     productSpConvertionStart: function (xmlInputString, inputFileName, inputFileLength, metadataString) {
-      // Reset global state (if your code uses collectedFiles, log_text, etc.)
-      collectedFiles = [];
-      downloadCount = 0;
-      log_text = log_text || '';
-      nonConverted = nonConverted || '';
+      // Ensure module-scoped state exists
+      collectedFiles = Array.isArray(collectedFiles) ? collectedFiles : [];
+      downloadCount = typeof downloadCount === 'number' ? downloadCount : 0;
+      log_text = typeof log_text === 'string' ? log_text : '';
+      nonConverted = typeof nonConverted === 'string' ? nonConverted : '';
 
-      try {
-        // Run the original conversion (this function calls downloadXML, which we replaced to collect files)
-        productSpConvertionStart(xmlInputString, inputFileName, inputFileLength);
-      } catch (e) {
-        log_text += '\nERROR: ' + (e.message || e);
+      // Optionally parse metadataString into global expected variables
+      if (metadataString) {
+        try {
+          // Example: if converter expects swaggerData global
+          // swaggerData = JSON.parse(metadataString);
+        } catch (e) {
+          log_text += '\n[metadata parse error] ' + (e && e.message ? e.message : String(e));
+        }
       }
 
+      // Reset per-call state
+      collectedFiles.length = 0;
+      downloadCount = 0;
+      // keep log_text if you want to preserve previous logs; else reset:
+      log_text = '';
+      nonConverted = '';
+
+      try {
+        // Call the existing conversion function which is expected to call downloadXML() internally.
+        // If your main function has a different name, replace productSpConvertionStart(...) accordingly.
+        // NOTE: if productSpConvertionStart is the same wrapper name, ensure you call the original internal function
+        // (rename conflict could exist) — adjust as necessary.
+        if (typeof productSpConvertionStart === 'function') {
+          productSpConvertionStart(xmlInputString, inputFileName, inputFileLength);
+        } else {
+          throw new Error('productSpConvertionStart function not found');
+        }
+      } catch (e) {
+        const em = e && e.stack ? e.stack : (e && e.message ? e.message : String(e));
+        console.error('[product_sp_convert] productSpConvertionStart threw:', em);
+        log_text += '\n[internal error] ' + em;
+      }
+
+      // Normalize files: remove .xml in name (server adds extension)
+      const files = (collectedFiles || []).map(f => {
+        const nameNoExt = (f.name || '').replace(/\.xml$/i, '');
+        return { name: nameNoExt, content: f.content || '' };
+      });
+
       return {
-        files: collectedFiles || [],
-        log_text,
-        nonConverted
+        files,
+        log_text: log_text || '',
+        nonConverted: nonConverted || ''
       };
     }
   };
 }
+
 
 
 
