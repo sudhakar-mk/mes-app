@@ -75,14 +75,12 @@ document.addEventListener('DOMContentLoaded', function () {
       // perform upload to server and download returned zip
       (async function () {
         try {
-          const form = new FormData();
-          // append single xml and single json (matches your HTML inputs)
-          form.append('xmlFiles', xml);    // xml is the File object from earlier in the handler
-          form.append('metadata', json);   // json is the File object from earlier in the handler
-
+          const xmlText = await xml.text();
+          const metaText = await json.text();
           const res = await fetch('/api/convert', {
             method: 'POST',
-            body: form
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ xmlContent: xmlText, fileName: xml.name, metadata: metaText })
           });
 
           if (!res.ok) {
