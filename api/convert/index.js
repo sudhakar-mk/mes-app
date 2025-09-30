@@ -1,22 +1,72 @@
-// api/convert/index.js (debug mode — returns full stack on error)
-const JSZip = require('jszip');
-const { JSDOM } = require('jsdom');
-const customConv = require('../ProcessXML/custom_sp_convert.js');
-const productConv = require('../ProcessXML/product_sp_convert.js');
+// api/convert/index.js (debug mode: reveal require/load errors)
+const JSZipName = 'jszip';
+const JSDOMName = 'jsdom';
 
-// jsdom DOMParser + XMLSerializer shim
+let JSZip, JSDOM, customConv, productConv;
+let loadError = null;
+
+try {
+  JSZip = require(JSZipName);
+} catch (e) {
+  loadError = loadError || [];
+  loadError.push(`Failed to require('${JSZipName}'): ${e && e.stack ? e.stack : e}`);
+}
+
+try {
+  JSDOM = require(JSDOMName).JSDOM;
+} catch (e) {
+  loadError = loadError || [];
+  loadError.push(`Failed to require('${JSDOMName}'): ${e && e.stack ? e.stack : e}`);
+}
+
+try {
+  // converters (paths relative to api/convert/)
+  customConv = require('../ProcessXML/custom_sp_convert.js');
+} catch (e) {
+  loadError = loadError || [];
+  loadError.push(`Failed to require('../ProcessXML/custom_sp_convert.js'): ${e && e.stack ? e.stack : e}`);
+}
+
+try {
+  productConv = require('../ProcessXML/product_sp_convert.js');
+} catch (e) {
+  loadError = loadError || [];
+  loadError.push(`Failed to require('../ProcessXML/product_sp_convert.js'): ${e && e.stack ? e.stack : e}`);
+}
+
+// If any require failed, export a function that immediately returns the combined stack traces
+if (loadError) {
+  module.exports = async function (context, req) {
+    const body = Array.isArray(loadError) ? loadError.join('\n\n----\n\n') : String(loadError);
+    context.log.error('[function] Module load failed. Returning debug info.');
+    context.res = {
+      status: 500,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      body: `Module load errors:\n\n${body}`
+    };
+  };
+  // stop here — do not continue with normal handler
+  return;
+}
+
+// --- Provide jsdom-based DOMParser + XMLSerializer shims for converters ---
 global.DOMParser = function () {
   this.parseFromString = function (str, contentType = 'text/xml') {
     const dom = new JSDOM(str, { contentType });
     return dom.window.document;
   };
 };
+
 global.XMLSerializer = function () { };
 global.XMLSerializer.prototype.serializeToString = function (node) {
-  if (node && node.ownerDocument && node.ownerDocument.defaultView && node.ownerDocument.defaultView.XMLSerializer) {
-    const SerializerCtor = node.ownerDocument.defaultView.XMLSerializer;
-    const ser = new SerializerCtor();
-    return ser.serializeToString(node);
+  try {
+    if (node && node.ownerDocument && node.ownerDocument.defaultView && node.ownerDocument.defaultView.XMLSerializer) {
+      const SerializerCtor = node.ownerDocument.defaultView.XMLSerializer;
+      const ser = new SerializerCtor();
+      return ser.serializeToString(node);
+    }
+  } catch (e) {
+    // fall through
   }
   const dom = new JSDOM();
   const FallbackSerializer = dom.window.XMLSerializer;
@@ -24,9 +74,10 @@ global.XMLSerializer.prototype.serializeToString = function (node) {
   return fallbackSer.serializeToString(node);
 };
 
+// --- Actual Function handler (keeps previous logic) ---
 module.exports = async function (context, req) {
   try {
-    context.log('[function] /api/convert called (debug mode)');
+    context.log('[function] /api/convert called (debug-mode, requires succeeded)');
 
     // Expect JSON body: { xmlContent, fileName, metadata }
     const { xmlContent, fileName, metadata } = req.body || {};
@@ -65,7 +116,6 @@ module.exports = async function (context, req) {
     };
     context.log(`[function] Conversion complete — ${content.length} bytes`);
   } catch (err) {
-    // DEBUG: return full stack trace in response so you can see the error in the browser
     const stack = err && err.stack ? err.stack : String(err);
     context.log.error('[function] conversion error:', stack);
     context.res = {
