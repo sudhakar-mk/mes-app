@@ -84,8 +84,9 @@ document.addEventListener('DOMContentLoaded', function () {
           });
 
           if (!res.ok) {
-            const text = await res.text().catch(() => res.statusText);
-            throw new Error(text || `Server error: ${res.status}`);
+            let text = '';
+            try { text = await res.text(); } catch (e) { text = res.statusText; }
+            throw new Error(`Server error: ${res.status} ${res.statusText} — ${text}`);
           }
 
           // get response as blob (zip) and determine filename
