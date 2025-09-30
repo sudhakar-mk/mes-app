@@ -2,10 +2,59 @@
 const JSZipName = 'jszip';
 const JSDOMName = 'jsdom';
 
-
-
 let JSZip, JSDOM, customConv, productConv;
 let loadError = null;
+
+// ---------- Application Insights setup ----------
+let appInsights;
+let telemetryClient;
+
+try {
+  appInsights = require('applicationinsights');
+  const connStr =
+    process.env['APPINSIGHTS_CONNECTION_STRING'] ||
+    process.env['APPLICATIONINSIGHTS_CONNECTION_STRING'];
+  if (connStr) {
+    appInsights
+      .setup(connStr)
+      .setAutoCollectRequests(false)
+      .setAutoCollectPerformance(false)
+      .setSendLiveMetrics(false)
+      .start();
+    telemetryClient = appInsights.defaultClient;
+    console.log('[AppInsights] initialized');
+  } else {
+    console.warn('[AppInsights] connection string not found; telemetry disabled');
+  }
+} catch (e) {
+  console.warn('[AppInsights] not available:', e.message);
+}
+
+function trackConversionEvent(req, details) {
+  if (!telemetryClient) return;
+
+  const props = {
+    fileName: details.fileName || '',
+    status: details.status || '',
+    error: details.error ? String(details.error).slice(0, 500) : '',
+    userAgent: (req.headers && req.headers['user-agent']) || '',
+    clientIp:
+      (req.headers && (req.headers['x-forwarded-for'] || req.headers['x-ms-client-ip'])) ||
+      ''
+  };
+
+  const metrics = {
+    durationMs: details.durationMs || 0,
+    fileSizeBytes: details.fileSizeBytes || 0
+  };
+
+  telemetryClient.trackEvent({
+    name: 'Conversion',
+    properties: props,
+    measurements: metrics
+  });
+}
+
 
 try {
     JSZip = require(JSZipName);
@@ -77,12 +126,19 @@ global.XMLSerializer.prototype.serializeToString = function (node) {
 };
 
 // --- Actual Function handler (keeps previous logic) ---
+// --- Actual Function handler (keeps previous logic) ---
 module.exports = async function (context, req) {
+    const start = Date.now(); // <-- track start time
+    let status = 'success';
+    let errorText = '';
+    let fileName = '';
+
     try {
         context.log('[function] /api/convert called (debug-mode, requires succeeded)');
 
         // Expect JSON body: { xmlContent, fileName, metadata }
-        const { xmlContent, fileName, metadata } = req.body || {};
+        const { xmlContent, fileName: reqFileName, metadata } = req.body || {};
+        fileName = reqFileName; // capture for telemetry
 
         if (!xmlContent || !fileName) {
             context.res = { status: 400, body: 'xmlContent and fileName are required (send JSON)' };
@@ -94,7 +150,6 @@ module.exports = async function (context, req) {
         const prodOut = (await Promise.resolve(
             productConv.productSpConvertionStart(out.format2, out.fileName, out.fileLength, metadata || '')
         )) || { files: [], log_text: '', nonConverted: '' };
-
 
         // Build zip
         const zip = new JSZip();
@@ -120,7 +175,11 @@ module.exports = async function (context, req) {
             isRaw: true
         };
         context.log(`[function] Conversion complete — ${content.length} bytes`);
+
     } catch (err) {
+        status = 'failure';
+        errorText = err && err.message ? err.message : String(err);
+
         const stack = err && err.stack ? err.stack : String(err);
         context.log.error('[function] conversion error:', stack);
         context.res = {
@@ -128,5 +187,20 @@ module.exports = async function (context, req) {
             headers: { 'Content-Type': 'text/plain; charset=utf-8' },
             body: `Server debug error:\n\n${stack}`
         };
+    } finally {
+        // Always track telemetry
+        const durationMs = Date.now() - start;
+        const fileSizeBytes = (req.body && req.body.xmlContent)
+            ? Buffer.byteLength(req.body.xmlContent, 'utf8')
+            : 0;
+
+        trackConversionEvent(req, {
+            fileName,
+            fileSizeBytes,
+            durationMs,
+            status,
+            error: errorText
+        });
     }
 };
+
