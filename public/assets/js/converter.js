@@ -66,16 +66,68 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
       }
 
+      // show spinner / disable button (keep these lines)
       spinner.classList.remove('hidden');
       status.classList.remove('hidden');
       status.textContent = 'Uploading and converting…';
       convertBtn.disabled = true;
 
-      setTimeout(function () {
-        spinner.classList.add('hidden');
-        status.textContent = 'Conversion complete.';
-        convertBtn.disabled = false;
-      }, 1500);
+      // perform upload to server and download returned zip
+      (async function () {
+        try {
+          const form = new FormData();
+          // append single xml and single json (matches your HTML inputs)
+          form.append('xmlFiles', xml);    // xml is the File object from earlier in the handler
+          form.append('metadata', json);   // json is the File object from earlier in the handler
+
+          const res = await fetch('/api/convert', {
+            method: 'POST',
+            body: form
+          });
+
+          if (!res.ok) {
+            const text = await res.text().catch(() => res.statusText);
+            throw new Error(text || `Server error: ${res.status}`);
+          }
+
+          // get response as blob (zip) and determine filename
+          const blob = await res.blob();
+          let filename = 'converted.zip';
+          const cd = res.headers.get('content-disposition') || '';
+          // try to extract filename from Content-Disposition
+          const fnMatch1 = cd.match(/filename\*=UTF-8''([^;]+)/i);
+          const fnMatch2 = cd.match(/filename="([^"]+)"/);
+          const fnMatch3 = cd.match(/filename=([^;]+)/);
+          if (fnMatch1) {
+            filename = decodeURIComponent(fnMatch1[1]);
+          } else if (fnMatch2) {
+            filename = fnMatch2[1];
+          } else if (fnMatch3) {
+            filename = fnMatch3[1].trim();
+          }
+
+          // trigger download
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(link.href), 2000);
+
+          status.textContent = 'Conversion complete — download started.';
+        } catch (err) {
+          console.error('Conversion error:', err);
+          status.textContent = 'Conversion failed: ' + (err.message || err);
+          status.style.color = 'red';
+        } finally {
+          spinner.classList.add('hidden');
+          convertBtn.disabled = false;
+        }
+      })();
+
+
+
     });
   }
 
