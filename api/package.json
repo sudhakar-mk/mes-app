@@ -7,9 +7,9 @@
   "dependencies": {
     "jszip": "3.10.1",
     "jsdom": "22.1.0",
-    "xmldom": "0.8.10"
+    "xmldom": "^0.6.0"
   },
   "engines": {
-    "node": ">=18 <20"
+    "node": ">=16"
   }
 }
