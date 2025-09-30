@@ -992,8 +992,28 @@ function CheckSwiggerApiExist(manualGroup, manualOperation) {
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    productSpConvertionStart
+    productSpConvertionStart: function (xmlInputString, inputFileName, inputFileLength, metadataString) {
+      // Reset global state (if your code uses collectedFiles, log_text, etc.)
+      collectedFiles = [];
+      downloadCount = 0;
+      log_text = log_text || '';
+      nonConverted = nonConverted || '';
+
+      try {
+        // Run the original conversion (this function calls downloadXML, which we replaced to collect files)
+        productSpConvertionStart(xmlInputString, inputFileName, inputFileLength);
+      } catch (e) {
+        log_text += '\nERROR: ' + (e.message || e);
+      }
+
+      return {
+        files: collectedFiles || [],
+        log_text,
+        nonConverted
+      };
+    }
   };
 }
+
 
 
