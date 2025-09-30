@@ -46,7 +46,7 @@ let actioncontainsvariables;
 let startString = String.raw`return \"{`;
 let endString = String.raw`}\";`;
 //WEBAPI 
-let prodspslist = '';
+global.prodspslist = '';
 let relaceXmlvariableStracture = [];
 let format2 = '';
 
@@ -58,6 +58,8 @@ let startTimeStr = '';
 let endTime = '';
 let endTimeStr = '';
 
+const fs = require('fs');
+const path = require('path');
 
 function loadAndDisplay() {
     startTime = new Date();
@@ -97,21 +99,15 @@ function readXML() {
     }
 }
 
-// Function to load the product list (using XMLHttpRequest)
+// Function to load the product list
 function productSpListload() {
-    const filePath = './productsplist.txt';
-    const xhr = new XMLHttpRequest();
-    xhr.open('GET', filePath, false);
-    xhr.onreadystatechange = function () {
-        if (xhr.readyState === 4) {
-            if (xhr.status === 200) {
-                prodspslist = xhr.responseText;
-            } else {
-                console.error(`Error loading file: ${xhr.status}`);
-            }
-        }
-    };
-    xhr.send();
+  try {
+    const filePath = path.join(__dirname, 'productsplist.txt');
+    global.prodspslist = fs.readFileSync(filePath, 'utf8');
+  } catch (e) {
+    console.error('Error loading productsplist.txt:', e.message);
+    global.prodspslist = '';
+  }
 }
 
 
@@ -190,7 +186,7 @@ function startConversion(xmlContent, fileName, fileLength) {
                         const fstring = (apiSpListElement.innerHTML.match(/<!\[CDATA\[(.*?)\]\]>/s)?.[1] || '');
 
                         const containsPeriodOrProduct = (fstring) => {
-                            return fstring.includes('.') || prodspslist.split(',').some(product => fstring.includes(product.trim()));
+                            return fstring.includes('.') || global.prodspslist.split(',').some(product => fstring.includes(product.trim()));
                         };
                         if (!containsPeriodOrProduct(fstring)) {
 
@@ -988,7 +984,7 @@ function removeGenerateCommandElements(xmlDoc) {
                     const fetchSpString = (apiSpListElement.innerHTML.match(/<!\[CDATA\[(.*?)\]\]>/s)?.[1] || '');
                     if (fetchSpString) {
                         const containsPeriodOrProduct = (fetchSpstring) => {
-                            return fetchSpstring.includes('.') || prodspslist.split(',').some(product => fetchSpstring.includes(product.trim()));
+                            return fetchSpstring.includes('.') || global.prodspslist.split(',').some(product => fetchSpstring.includes(product.trim()));
                         };
                         if (!containsPeriodOrProduct(fetchSpString)) {
                             const properties = actionElement.querySelectorAll('properties property');

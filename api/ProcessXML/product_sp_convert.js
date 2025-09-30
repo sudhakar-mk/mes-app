@@ -78,7 +78,7 @@ function productSpConvertionStart(xmlInputString, inputFileName, inputFileLength
 
             const spContainsPeriodOrProduct = (spCdataContent) => {
               return spCdataContent.includes('.') ||
-                prodspslist.split(',').some(spProductName =>
+                global.prodspslist.split(',').some(spProductName =>
                   spCdataContent.includes(spProductName.trim()));
             };
 
