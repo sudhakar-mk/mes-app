@@ -1,9 +1,10 @@
+// api/convert/index.js (debug mode — returns full stack on error)
 const JSZip = require('jszip');
 const { JSDOM } = require('jsdom');
 const customConv = require('../ProcessXML/custom_sp_convert.js');
 const productConv = require('../ProcessXML/product_sp_convert.js');
 
-// Provide jsdom-based DOMParser + XMLSerializer globally (so converters work)
+// jsdom DOMParser + XMLSerializer shim
 global.DOMParser = function () {
   this.parseFromString = function (str, contentType = 'text/xml') {
     const dom = new JSDOM(str, { contentType });
@@ -25,39 +26,24 @@ global.XMLSerializer.prototype.serializeToString = function (node) {
 
 module.exports = async function (context, req) {
   try {
-    context.log('[function] /api/convert called');
+    context.log('[function] /api/convert called (debug mode)');
 
-    // Expect multipart/form-data: Azure Functions does not parse this automatically.
-    // Simpler for Azure: send JSON from the client instead.
-    // Example body: { xmlContent: "...", fileName: "workflow1.xml", metadata: "{...}" }
-
+    // Expect JSON body: { xmlContent, fileName, metadata }
     const { xmlContent, fileName, metadata } = req.body || {};
 
     if (!xmlContent || !fileName) {
-      context.res = { status: 400, body: 'xmlContent and fileName are required' };
+      context.res = { status: 400, body: 'xmlContent and fileName are required (send JSON)' };
       return;
     }
 
     // Run converters
-    const out = await Promise.resolve(
-      customConv.startConversion(xmlContent, fileName, xmlContent.length)
-    );
+    const out = await Promise.resolve(customConv.startConversion(xmlContent, fileName, xmlContent.length));
+    const prodOut = await Promise.resolve(productConv.productSpConvertionStart(out.format2, out.fileName, out.fileLength, metadata || ''));
 
-    const prodOut = await Promise.resolve(
-      productConv.productSpConvertionStart(out.format2, out.fileName, out.fileLength, metadata || '')
-    );
-
-    // Collect files
-    const results = [];
-    if (prodOut && prodOut.files) {
-      results.push(...prodOut.files);
-    }
-
-    // Build a zip
+    // Build zip
     const zip = new JSZip();
-    results.forEach(f => {
-      let fname = f.name.toLowerCase().endsWith('.xml') ? f.name : f.name + '.xml';
-      zip.file(fname, f.content || '');
+    (prodOut.files || []).forEach(f => {
+      zip.file(f.name.toLowerCase().endsWith('.xml') ? f.name : f.name + '.xml', f.content || '');
     });
     zip.file('conversion_log.txt', (out.log_text || '') + '\n' + (prodOut.log_text || ''));
     if (out.nonConverted || prodOut.nonConverted) {
@@ -77,9 +63,15 @@ module.exports = async function (context, req) {
       body: content,
       isRaw: true
     };
-    context.log(`[function] Conversion complete — returned ${content.length} bytes as ${outName}`);
+    context.log(`[function] Conversion complete — ${content.length} bytes`);
   } catch (err) {
-    context.log.error('[function] conversion error:', err && err.stack ? err.stack : err);
-    context.res = { status: 500, body: 'Conversion failed: ' + (err.message || err) };
+    // DEBUG: return full stack trace in response so you can see the error in the browser
+    const stack = err && err.stack ? err.stack : String(err);
+    context.log.error('[function] conversion error:', stack);
+    context.res = {
+      status: 500,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      body: `Server debug error:\n\n${stack}`
+    };
   }
 };
